@@ -15,13 +15,12 @@ def start_polling():
 
     while True:
         for olt in config["olts"]:
-            adapter = HuaweiSnmpAdapter(olt["ip"], olt["community"])
-            print(f"🏢 Consultando OLT: {olt['name']}")
-
+            # ... lógica de consulta ...
             for port in olt["ports"]:
-                up, down = adapter.get_current_traffic(port["index"])
+                # ... consulta puerto ...
                 if up is not None:
                     repo.save_metric(olt["name"], port["id"], down, up)
-                    print(f"  ✅ {port['id']}: {down} Mbps / {up} Mbps")
 
+        # MOVER ESTO AQUÍ (afuera de los bucles)
+        print(f"😴 Ciclo completado. Durmiendo {config['polling_interval']}s...")
         time.sleep(config["polling_interval"])
