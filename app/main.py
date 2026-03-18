@@ -41,6 +41,19 @@ from fastapi.responses import FileResponse
 import subprocess
 
 
+@app.get("/graph/{olt_name}/{port_id:path}")
+async def get_olt_port_graph(olt_name: str, port_id: str):
+    """
+    Ahora la URL es descriptiva: /graph/NOMBRE_OLT/PUERTO
+    """
+    # Generamos el gráfico usando el nombre de la OLT para el título
+    img_path = visualize_forecast.generate_dual_graph(olt_name, port_id)
+
+    if not img_path:
+        return {"error": "No hay datos para esta combinación de OLT/Puerto"}
+
+    return FileResponse(img_path)
+
 @app.get("/graph/{port_id:path}")
 def get_traffic_graph(port_id: str):
     """

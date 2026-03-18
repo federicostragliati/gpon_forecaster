@@ -1,0 +1,14 @@
+{
+  "polling_interval": 60,
+  "olts": [
+    {
+      "name": "OLT-SM03",
+      "ip": "10.0.255.94",
+      "community": "Tr@1n5p0771ng",
+      "ports": [
+        {"id": "0/8/0", "index": "234946560"},
+        {"id": "0/9/0", "index": "234954752"}
+      ]
+    }
+  ]
+}
