@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>TeleRed - GPON AI Forecaster</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
+        .olt-section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 20px; } /* Cambiado a 1 columna para que el gráfico sea ancho */
+        .card { background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        iframe { width: 100%; height: 500px; border: none; } /* Estilo para el gráfico interactivo */
+        h1 { color: #2c3e50; }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🛰️ Monitoreo GPON con Inteligencia Artificial</h1>
+    <div id="dashboard">Cargando monitoreos...</div>
+
+    <script>
+        fetch('/config-data')
+            .then(response => response.json())
+            .then(config => {
+                const container = document.getElementById('dashboard');
+                container.innerHTML = '';
+
+                config.olts.forEach(olt => {
+                    const section = document.createElement('div');
+                    section.className = 'olt-section';
+                    section.innerHTML = `<h2>Equipo: ${olt.name} (${olt.ip})</h2><div class="grid" id="olt-${olt.name}"></div>`;
+                    container.appendChild(section);
+
+                    const grid = document.getElementById(`olt-${olt.name}`);
+                    olt.ports.forEach(port => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+
+                        // La URL ahora apunta al endpoint que devuelve HTML de Plotly
+                        const graphUrl = `/graph/${olt.name}/${port.id}`;
+
+                        card.innerHTML = `
+                            <h3>Puerto ${port.id}</h3>
+                            <iframe src="${graphUrl}" title="Gráfico Puerto ${port.id}"></iframe>
+                        `;
+                        grid.appendChild(card);
+                    });
+                });
+            });
+    </script>
+</body>
+</html>
