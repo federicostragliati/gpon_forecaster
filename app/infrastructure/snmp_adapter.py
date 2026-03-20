@@ -69,9 +69,18 @@ class HuaweiSnmpAdapter:
         if in_2 is None or out_2 is None:
             return None, None
 
+        # app/infrastructure/snmp_adapter.py (Línea ~75)
         delta_t = t2 - t1
-        # Mbps = (Octetos_final - Octetos_inicial) * 8 bits / (Tiempo * 1.000.000)
+
+        # --- SOLUCIÓN: Validar que el contador no haya vuelto a cero ---
+        if in_2 < in_1 or out_2 < out_1:
+            return None, None  # Ignoramos la muestra si hubo un wrap
+
         mbps_up = ((in_2 - in_1) * 8) / (delta_t * 1_000_000)
         mbps_down = ((out_2 - out_1) * 8) / (delta_t * 1_000_000)
 
-        return round(abs(mbps_up), 2), round(abs(mbps_down), 2)
+        # Filtro de cordura para UpLink 10G
+        if mbps_up > 10500 or mbps_down > 10500:
+            return None, None
+
+        return round(mbps_up, 2), round(mbps_down, 2)  # Quitamos el abs()
