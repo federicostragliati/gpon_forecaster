@@ -19,10 +19,16 @@ def generate_interactive_graph(olt_name, port_id):
     with open(file_up, 'r') as f:
         m_up = model_from_json(f.read())
 
-    # 2. Predecir (3 meses = 90 días)
-    future = m_down.make_future_dataframe(periods=90, freq='D')
+    # 2. PREDECIR (Necesita el CAP para growth='logistic')
+    future = m_down.make_future_dataframe(periods=7, freq='D')
+    future['cap'] = 10000  # Es obligatorio que coincida con el valor del entrenamiento
+
     f_down = m_down.predict(future)
-    f_up = m_up.predict(future)
+
+    # Repetir para Upstream si usas el mismo techo
+    future_up = m_up.make_future_dataframe(periods=7, freq='D')
+    future_up['cap'] = 10000
+    f_up = m_up.predict(future_up)
 
     # 3. Traer data real
     conn = sqlite3.connect("gpon_monitoring.db")
