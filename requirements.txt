@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────
+# gpon_forecaster — dependencias
+# Python 3.10+
+# ─────────────────────────────────────────────
+
+# Forecasting
+prophet==1.1.5
+
+# Data
+pandas>=2.0.0
+numpy>=1.26.0
+
+# Base de datos
+# (sqlite3 viene incluido en Python stdlib)
+
+# SNMP — elegir UNO según el adaptador usado
+pysnmp>=6.1.0          # puro Python, sin dependencias C
+# easysnmp>=0.2.6      # más rápido, requiere libsnmp-dev instalado
+
+# Visualización
+plotly>=5.18.0
+
+# Web framework (si se usa Flask para servir el dashboard)
+flask>=3.0.0
+
+# Utilidades
+python-dateutil>=2.8.0  # manejo de fechas (usado por Prophet internamente)

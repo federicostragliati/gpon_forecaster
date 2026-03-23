@@ -1,0 +1,15 @@
+{
+  "polling_interval": 60,
+  "cap_mbps": 10000,
+  "olts": [
+    {
+      "name": "OLT-EJEMPLO",
+      "ip": "10.0.0.1",
+      "community": "TU_COMMUNITY_SNMP_AQUI",
+      "ports": [
+        {"id": "0/8/0", "index": "234946560"},
+        {"id": "0/9/0", "index": "234954752"}
+      ]
+    }
+  ]
+}

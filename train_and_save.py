@@ -6,9 +6,16 @@ import os
 import json
 import logging
 
-# Limpieza de consola
-logging.getLogger('cmdstanpy').setLevel(logging.WARNING)
-logging.getLogger('prophet').setLevel(logging.WARNING)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
+# Silenciar logs internos de Prophet/Stan
+logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
+logging.getLogger("prophet").setLevel(logging.WARNING)
 
 DB_PATH = "gpon_monitoring.db"
 CONFIG_PATH = "config.json"
@@ -16,53 +23,73 @@ CONFIG_PATH = "config.json"
 
 def train_all():
     if not os.path.exists(CONFIG_PATH):
-        print("❌ No existe config.json")
+        log.error("No existe config.json")
         return
 
-    with open(CONFIG_PATH, "r") as f:
-        config = json.load(f)
+    # FIX: variable renombrada a f_config para evitar colisión con f_model más abajo
+    with open(CONFIG_PATH, "r") as f_config:
+        config = json.load(f_config)
 
-    conn = sqlite3.connect(DB_PATH)
+    # FIX: leer cap y freq desde config para que sean consistentes con el poller
+    cap_mbps = config.get("cap_mbps", 10000)
+    polling_sec = config.get("polling_interval", 60)
+    freq = f"{polling_sec}s"
+    # 7 días expresados en cantidad de puntos según el intervalo real de polling
+    periods_7d = int(7 * 24 * 3600 / polling_sec)
 
-    for olt in config["olts"]:
-        olt_name = olt["name"]
-        for port in olt["ports"]:
-            port_id = port["id"]
+    log.info("Cap: %d Mbps | Freq: %s | Períodos 7d: %d", cap_mbps, freq, periods_7d)
 
-            query = "SELECT timestamp as ds, downstream, upstream FROM traffic_history WHERE olt_name = ? AND port_id = ?"
-            df = pd.read_sql_query(query, conn, params=(olt_name, port_id))
+    # FIX: usar context manager para que la conexión se cierre aunque haya excepciones
+    with sqlite3.connect(DB_PATH) as conn:
+        for olt in config["olts"]:
+            olt_name = olt["name"]
+            for port in olt["ports"]:
+                port_id = port["id"]
 
-            if len(df) < 10:
-                print(f"⚠️ {olt_name} {port_id}: Datos insuficientes ({len(df)}/10).")
-                continue
-
-            print(f"🧠 Entrenando {olt_name} - Puerto {port_id}...")
-
-            for mode in ['downstream', 'upstream']:
-                # 1. Preparar los datos con el CAP de 10Gbps
-                train_df = df[['ds', mode]].rename(columns={mode: 'y'})
-                train_df['cap'] = 10000  # Techo lógico para el crecimiento logístico
-
-                # 2. Configurar el modelo UNIFICANDO todos los ajustes
-                m = Prophet(
-                    growth='logistic',  # Usa el CAP de 10000 como límite
-                    daily_seasonality=True,  # Patrón día/noche de TeleRed
-                    weekly_seasonality=False,  # Desactivar hasta tener 14+ días de data
-                    changepoint_prior_scale=0.01,  # Tendencia más rígida (evita caídas falsas)
-                    seasonality_prior_scale=1.0  # Da peso a los ciclos diarios
+                query = (
+                    "SELECT timestamp as ds, downstream, upstream "
+                    "FROM traffic_history "
+                    "WHERE olt_name = ? AND port_id = ?"
                 )
+                df = pd.read_sql_query(query, conn, params=(olt_name, port_id))
 
-                # 3. Entrenar (UNA sola vez)
-                m.fit(train_df)
+                if len(df) < 10:
+                    log.warning("%s %s: Datos insuficientes (%d/10). Saltando.", olt_name, port_id, len(df))
+                    continue
 
-                # 4. Guardar modelo
-                file_name = f"model_{olt_name}_{port_id.replace('/', '_')}_{mode}.json"
-                with open(file_name, 'w') as f:
-                    f.write(model_to_json(m))
+                log.info("Entrenando %s - Puerto %s (%d puntos)...", olt_name, port_id, len(df))
 
-            print(f"✅ Modelos actualizados para {port_id}")
+                for mode in ["downstream", "upstream"]:
+                    try:
+                        # 1. Preparar datos con el CAP configurado
+                        train_df = df[["ds", mode]].rename(columns={mode: "y"})
+                        train_df["cap"] = cap_mbps
 
-    conn.close()
+                        # 2. Configurar modelo
+                        m = Prophet(
+                            growth="logistic",
+                            daily_seasonality=True,
+                            weekly_seasonality=False,
+                            changepoint_prior_scale=0.01,
+                            seasonality_prior_scale=1.0,
+                        )
+
+                        # 3. Entrenar
+                        m.fit(train_df)
+
+                        # 4. Guardar modelo
+                        # FIX: variable renombrada a f_model para evitar colisión con f_config
+                        file_name = f"model_{olt_name}_{port_id.replace('/', '_')}_{mode}.json"
+                        with open(file_name, "w") as f_model:
+                            f_model.write(model_to_json(m))
+
+                        log.info("  [%s] Modelo guardado: %s", mode, file_name)
+
+                    except Exception as e:
+                        log.error("  Error entrenando %s/%s/%s: %s", olt_name, port_id, mode, e)
+                        continue
+
+                log.info("Modelos actualizados para %s", port_id)
 
 
 if __name__ == "__main__":
