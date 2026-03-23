@@ -74,13 +74,14 @@ class HuaweiSnmpAdapter:
 
         # --- SOLUCIÓN: Validar que el contador no haya vuelto a cero ---
         if in_2 < in_1 or out_2 < out_1:
-            return None, None  # Ignoramos la muestra si hubo un wrap
+            print(f"⚠️ Counter wrap detectado en {port_index}. Ignorando muestra.")
+            return None, None
 
         mbps_up = ((in_2 - in_1) * 8) / (delta_t * 1_000_000)
         mbps_down = ((out_2 - out_1) * 8) / (delta_t * 1_000_000)
 
         # Filtro de cordura para UpLink 10G
-        if mbps_up > 10500 or mbps_down > 10500:
+        if mbps_up > 10000 or mbps_down > 10000:
             return None, None
 
         return round(mbps_up, 2), round(mbps_down, 2)  # Quitamos el abs()
