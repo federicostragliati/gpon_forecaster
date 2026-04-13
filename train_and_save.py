@@ -69,7 +69,7 @@ def train_all():
                         m = Prophet(
                             growth="logistic",
                             daily_seasonality=True,
-                            weekly_seasonality=False,
+                            weekly_seasonality=True,
                             changepoint_prior_scale=0.01,
                             seasonality_prior_scale=1.0,
                         )
